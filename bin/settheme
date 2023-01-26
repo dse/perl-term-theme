@@ -1,0 +1,19 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use open qw(:locale);
+
+use FindBin;
+use lib "${FindBin::Bin}/../lib";
+use Term::Theme::Setter qw(:all);
+use Term::Theme::Parser qw(:all);
+
+my $parser = Term::Theme::Parser->new();
+$parser->{callback} = sub {
+    my ($name, $red, $green, $blue) = @_;
+    warn("$name $red $green $blue\n");
+    print(set_color($name, $red, $green, $blue));
+};
+while (<>) {
+    $parser->parse_line($_);
+}

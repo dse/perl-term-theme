@@ -1,0 +1,47 @@
+#!/usr/bin/env perl
+use warnings;
+use strict;
+use open qw(:locale);
+use Getopt::Long;
+use Data::Dumper qw(Dumper);
+
+use lib "$ENV{HOME}/git/dse.d/perl-term-theme/lib";
+use lib "$ENV{HOME}/git/dse.d/perl-color-functions/lib";
+use Term::Theme::Designer qw(:all);
+use Term::Theme::Print qw(print_theme);
+
+our %color_options;
+
+Getopt::Long::Configure('gnu_compat', 'bundling', 'no_ignore_case');
+Getopt::Long::GetOptions(
+    'hue|hue-shift'                    => \$color_options{hue_shift},
+    'sat|saturation'                   => \$color_options{saturation},
+    'light|lightness|normal-lightness' => \$color_options{normal_lightness},
+    'bright-lightness'                 => \$color_options{bright_lightness},
+    'black-lightness'                  => \$color_options{black_lightness},
+    'bright-black-lightness'           => \$color_options{bright_black_lightness},
+    'white-lightness'                  => \$color_options{white_lightness},
+    'bright-white-lightness'           => \$color_options{bright_white_lightness},
+    'dye|dye-color'                    => \$color_options{dye_color},
+    'dye-opacity'                      => \$color_options{dye_opacity},
+    'dye-chromatics'                   => \$color_options{dye_chromatics},
+    'dye-achromatics'                  => \$color_options{dye_achromatics},
+    'bg|background'                    => \$color_options{background},
+    'fg|foreground'                    => \$color_options{foreground},
+    'BG|bright-background'             => \$color_options{bright_background},
+    'FG|bright-foreground'             => \$color_options{bright_foreground},
+    'cursor'                           => \$color_options{cursor_color},
+) or die(":-(\n");
+foreach my $key (qw(background
+                    foreground
+                    bright_background
+                    bright_foreground
+                    cursor_color)) {
+    my $value = $color_options{$key};
+    if (defined $value) {
+        my @values = split(/[, ]+/, $value);
+        $color_options{$key} = \@values;
+    }
+}
+my $theme = design_theme(%color_options);
+print(print_theme($theme));
