@@ -114,7 +114,6 @@ sub design_theme {
         HighlightBackgroundColour => $bright_background,
         CursorColour              => $cursor_color,
     };
-    warn(print_theme($new_theme, 1));
     foreach my $color (keys %$new_theme) {
         my $use_dye = 0;
         if (is_achromatic($color)) {
@@ -127,7 +126,6 @@ sub design_theme {
             $new_theme->{$color} = [color_mix($new_theme->{$color}, $dye_color, $dye_opacity)];
         }
     }
-    warn(print_theme($new_theme, 1));
     foreach my $color (keys %$new_theme) {
         $new_theme->{$color} = $convert->($new_theme->{$color});
     }

@@ -15,7 +15,6 @@ use lib "$ENV{HOME}/git/dse.d/perl-term-theme/lib";
 use lib "$ENV{HOME}/git/dse.d/perl-color-functions/lib";
 use Term::Theme::Constants qw(:all);
 use Term::Theme::Parser qw(:all);
-use Term::Theme::Color qw(:all);
 
 our @COLOR_NAMES = qw(
     Black

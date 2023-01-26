@@ -11,7 +11,6 @@ use Term::Theme::Parser qw(:all);
 my $parser = Term::Theme::Parser->new();
 $parser->{callback} = sub {
     my ($name, $red, $green, $blue) = @_;
-    warn("$name $red $green $blue\n");
     print(set_color($name, $red, $green, $blue));
 };
 while (<>) {

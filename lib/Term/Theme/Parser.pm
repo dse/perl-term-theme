@@ -4,7 +4,6 @@ use strict;
 
 use lib "$ENV{HOME}/git/dse.d/perl-term-theme/lib";
 use lib "$ENV{HOME}/git/dse.d/perl-color-functions/lib";
-use Term::Theme::Color qw(:all);
 
 sub new {
     my ($class, %args) = @_;
@@ -12,7 +11,6 @@ sub new {
     return $self;
 }
 sub parse_line {
-    warn("parse_line\n");
     my ($self, $line) = @_;
     local $_ = $line;
     s{\A\s*}{}s;
