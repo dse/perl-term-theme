@@ -113,6 +113,25 @@ sub design_theme {
         BackgroundColour          => $background,
         HighlightBackgroundColour => $bright_background,
         CursorColour              => $cursor_color,
+        COMMENTS => [
+            sprintf('hue shift:              %.5f', $hue_shift),
+            sprintf('saturation:             %.5f', $saturation),
+            sprintf('normal lightness:       %.5f', $normal_lightness),
+            sprintf('bright lightness:       %.5f', $bright_lightness),
+            sprintf('black lightness:        %.5f', $black_lightness),
+            sprintf('bright black lightness: %.5f', $bright_black_lightness),
+            sprintf('white lightness:        %.5f', $white_lightness),
+            sprintf('bright white lightness: %.5f', $bright_white_lightness),
+            sprintf('dye color:              hsl(%.5f, %.5f, %.5f) %s', @{$dye_color}, srgb255_hex(hsl_to_srgb255($dye_color))),
+            sprintf('dye opacity:            %.5f', $dye_opacity),
+            sprintf('dye chromatics?:        %s', $dye_chromatics ? 'true' : 'false'),
+            sprintf('dye achromatics?:       %s', $dye_achromatics ? 'true' : 'false'),
+            sprintf('background:             hsl(%.5f, %.5f, %.5f) %s', @{$background}, srgb255_hex(hsl_to_srgb255($background))),
+            sprintf('foreground:             hsl(%.5f, %.5f, %.5f) %s', @{$foreground}, srgb255_hex(hsl_to_srgb255($foreground))),
+            sprintf('bright background:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_background}, srgb255_hex(hsl_to_srgb255($bright_background))),
+            sprintf('bright foreground:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_foreground}, srgb255_hex(hsl_to_srgb255($bright_foreground))),
+            sprintf('cursor color:           hsl(%.5f, %.5f, %.5f) %s', @{$cursor_color}, srgb255_hex(hsl_to_srgb255($cursor_color))),
+        ],
     };
     foreach my $color (keys %$new_theme) {
         my $use_dye = 0;
