@@ -5,6 +5,7 @@ use open qw(:locale);
 use Getopt::Long;
 use Data::Dumper qw(Dumper);
 
+use Carp::Always;
 use lib "$ENV{HOME}/git/dse.d/perl-term-theme/lib";
 use lib "$ENV{HOME}/git/dse.d/perl-color-functions/lib";
 use Term::Theme::Designer qw(:all);
@@ -31,6 +32,31 @@ Getopt::Long::GetOptions(
     'BG|bright-background=s'             => \$color_options{bright_background},
     'FG|bright-foreground=s'             => \$color_options{bright_foreground},
     'cursor=s'                           => \$color_options{cursor_color},
+    'no-gamma'                           => \$color_options{no_gamma},
+    'no-zero-to-one'                     => \$color_options{no_zero_to_one},
+    'greenscreen' => sub {
+        %color_options = (
+            %color_options, (
+                hue_shift              => 0,
+                saturation             => 1, # chromatics
+                normal_lightness       => 0.3, # chromatics
+                bright_lightness       => 0.6, # chromatics
+                black_lightness        => 0,
+                bright_black_lightness => 0.05,
+                white_lightness        => 0.5,
+                bright_white_lightness => 1.0,
+                dye_color              => [1/3, 1, 0.01],
+                dye_opacity            => 0.5,
+                dye_chromatics         => 1,
+                dye_achromatics        => 0,
+                background             => [1/3, 1, 0.01],
+                foreground             => [1/3, 1, 0.5],
+                bright_background      => [1/3, 1, 0.1],
+                bright_foreground      => [1/3, 1, 0.8],
+                cursor                 => [1/6, 1, 1],
+            )
+        );
+    },
 ) or die(":-(\n");
 foreach my $key (qw(background
                     foreground
@@ -38,10 +64,13 @@ foreach my $key (qw(background
                     bright_foreground
                     cursor_color)) {
     my $value = $color_options{$key};
-    if (defined $value) {
+    if (defined $value && ref $value ne 'ARRAY') {
         my @values = split(/[, ]+/, $value);
         $color_options{$key} = \@values;
     }
 }
 my $theme = design_theme(%color_options);
 print(print_theme($theme));
+foreach my $summary_line (@{$theme->{'@SUMMARY'}}) {
+    print STDERR ("# $summary_line\n");
+}

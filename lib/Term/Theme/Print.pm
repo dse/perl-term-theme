@@ -52,6 +52,11 @@ sub print_theme {
             $result .= sprintf("%-32s = %3d, %3d, %3d\n", $color_name, @$rgb);
         }
     }
+    if (defined $theme->{COMMENTS}) {
+        foreach my $comment (@{$theme->{COMMENTS}}) {
+            $result .= "# " . $comment . "\n";
+        }
+    }
     return $result;
 }
 

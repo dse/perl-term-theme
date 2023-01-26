@@ -1,6 +1,7 @@
 package Term::Theme::Designer;
 use warnings;
 use strict;
+use Data::Dumper qw(Dumper);
 
 use base "Exporter";
 our @EXPORT = qw();
@@ -45,21 +46,23 @@ sub design_theme {
     my %options = @_;
     my $hue_shift              = $options{hue_shift}              // 0; # -1/12..1/12 (-30..30 degrees)
     my $saturation             = $options{saturation}             // 1; # 0..1
-    my $normal_lightness       = $options{normal_lightness}       // 0.4; # 0..1
-    my $bright_lightness       = $options{bright_lightness}       // 0.6; # 0..1
+    my $normal_lightness       = $options{normal_lightness}       // 0.2; # 0..1
+    my $bright_lightness       = $options{bright_lightness}       // 0.7; # 0..1
     my $black_lightness        = $options{black_lightness}        // 0; # chromatic blk
-    my $bright_black_lightness = $options{bright_black_lightness} // 0.15; # chromatic bright blk
-    my $white_lightness        = $options{white_lightness}        // 0.85; # chromatic wht
+    my $bright_black_lightness = $options{bright_black_lightness} // 0.1; # chromatic bright blk
+    my $white_lightness        = $options{white_lightness}        // 0.4; # chromatic wht
     my $bright_white_lightness = $options{bright_white_lightness} // 1; # chromatic bright wht
     my $dye_color              = $options{dye_color}              // [0, 0, 0];
     my $dye_opacity            = $options{dye_opacity}            // 0;
     my $dye_chromatics         = $options{dye_chromatics}         // 0; # flag
     my $dye_achromatics        = $options{dye_achromatics}        // 0; # flag
     my $background             = $options{background}             // [0, 0, 0];
-    my $foreground             = $options{foreground}             // [0, 0, 0.85];
-    my $bright_background      = $options{bright_background};
-    my $bright_foreground      = $options{bright_foreground};
+    my $foreground             = $options{foreground}             // [0, 0, 0.5];
+    my $bright_background      = $options{bright_background}      // [0, 0, 0.25];
+    my $bright_foreground      = $options{bright_foreground}      // [0, 0, 1];
     my $cursor_color           = $options{cursor_color}           // [1/6, 1, 0.5];
+    my $no_gamma               = $options{no_gamma} // 0;
+    my $no_zero_to_one         = $options{no_zero_to_one} // 0;
     if (!defined $bright_background) {
         $bright_background = [ @{$background} ];
         $bright_background->[2] += 0.15;
@@ -84,14 +87,11 @@ sub design_theme {
     my $white            = [0, 0, $white_lightness];
     my $bright_black     = [0, 0, $bright_black_lightness];
     my $bright_white     = [0, 0, $bright_white_lightness];
-    my $convert = sub {
+    my $hex = sub {
         my $hsl = shift;
-        my $rgb = hsl_to_linear($hsl);
-        my $srgb = linear_to_srgb($rgb);
-        $srgb = multiply_255($srgb);
-        return $srgb;
+        return srgb_hex(multiply_255(hsl_to_srgb($hsl)));
     };
-    my $new_theme = {
+    my $theme = {
         Black                     => $black,
         Red                       => $red,
         Green                     => $green,
@@ -113,27 +113,38 @@ sub design_theme {
         BackgroundColour          => $background,
         HighlightBackgroundColour => $bright_background,
         CursorColour              => $cursor_color,
-        COMMENTS => [
-            sprintf('hue shift:              %.5f', $hue_shift),
-            sprintf('saturation:             %.5f', $saturation),
-            sprintf('normal lightness:       %.5f', $normal_lightness),
-            sprintf('bright lightness:       %.5f', $bright_lightness),
-            sprintf('black lightness:        %.5f', $black_lightness),
-            sprintf('bright black lightness: %.5f', $bright_black_lightness),
-            sprintf('white lightness:        %.5f', $white_lightness),
-            sprintf('bright white lightness: %.5f', $bright_white_lightness),
-            sprintf('dye color:              hsl(%.5f, %.5f, %.5f) %s', @{$dye_color}, srgb255_hex(hsl_to_srgb255($dye_color))),
-            sprintf('dye opacity:            %.5f', $dye_opacity),
-            sprintf('dye chromatics?:        %s', $dye_chromatics ? 'true' : 'false'),
-            sprintf('dye achromatics?:       %s', $dye_achromatics ? 'true' : 'false'),
-            sprintf('background:             hsl(%.5f, %.5f, %.5f) %s', @{$background}, srgb255_hex(hsl_to_srgb255($background))),
-            sprintf('foreground:             hsl(%.5f, %.5f, %.5f) %s', @{$foreground}, srgb255_hex(hsl_to_srgb255($foreground))),
-            sprintf('bright background:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_background}, srgb255_hex(hsl_to_srgb255($bright_background))),
-            sprintf('bright foreground:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_foreground}, srgb255_hex(hsl_to_srgb255($bright_foreground))),
-            sprintf('cursor color:           hsl(%.5f, %.5f, %.5f) %s', @{$cursor_color}, srgb255_hex(hsl_to_srgb255($cursor_color))),
-        ],
     };
-    foreach my $color (keys %$new_theme) {
+    $theme->{'@COMMENTS'} = [
+        sprintf('hue shift:              %.5f', $hue_shift),
+        sprintf('saturation:             %.5f', $saturation),
+        sprintf('normal lightness:       %.5f', $normal_lightness),
+        sprintf('bright lightness:       %.5f', $bright_lightness),
+        sprintf('black lightness:        %.5f', $black_lightness),
+        sprintf('bright black lightness: %.5f', $bright_black_lightness),
+        sprintf('white lightness:        %.5f', $white_lightness),
+        sprintf('bright white lightness: %.5f', $bright_white_lightness),
+        sprintf('dye color:              hsl(%.5f, %.5f, %.5f) %s', @{$dye_color}, $hex->(($dye_color))),
+        sprintf('dye opacity:            %.5f', $dye_opacity),
+        sprintf('dye chromatics?:        %s', $dye_chromatics ? 'true' : 'false'),
+        sprintf('dye achromatics?:       %s', $dye_achromatics ? 'true' : 'false'),
+        sprintf('background:             hsl(%.5f, %.5f, %.5f) %s', @{$background}, $hex->(($background))),
+        sprintf('foreground:             hsl(%.5f, %.5f, %.5f) %s', @{$foreground}, $hex->(($foreground))),
+        sprintf('bright background:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_background}, $hex->(($bright_background))),
+        sprintf('bright foreground:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_foreground}, $hex->(($bright_foreground))),
+        sprintf('cursor color:           hsl(%.5f, %.5f, %.5f) %s', @{$cursor_color}, $hex->(($cursor_color))),
+    ];
+    $theme->{'@SUMMARY'} = [
+        sprintf('colors: %s %s %s %s %s %s %s %s', (map { $hex->(($theme->{$_})) } qw(Black Red Green Yellow Blue Magenta Cyan White))),
+        sprintf('bright: %s %s %s %s %s %s %s %s', (map { $hex->(($theme->{$_})) } qw(BoldBlack BoldRed BoldGreen BoldYellow BoldBlue BoldMagenta BoldCyan BoldWhite))),
+        sprintf('fg: %s   bg: %s   bright fg: %s   bright bg: %s   cursor: %s ', (map { $hex->(($theme->{$_})) } qw(ForegroundColour
+                                                                                                                    BackgroundColour
+                                                                                                                    HighlightForegroundColour
+                                                                                                                    HighlightBackgroundColour
+                                                                                                                    CursorColour))),
+    ];
+    my $dye_rgb = hsl_to_linear($dye_color);
+    foreach my $color (keys %$theme) {
+        next if substr($color, 0, 1) eq '@';
         my $use_dye = 0;
         if (is_achromatic($color)) {
             $use_dye = $dye_achromatics;
@@ -141,14 +152,14 @@ sub design_theme {
         if (is_chromatic($color)) {
             $use_dye = $dye_chromatics;
         }
+        $theme->{$color} = hsl_to_linear($theme->{$color});
         if ($use_dye) {
-            $new_theme->{$color} = [color_mix($new_theme->{$color}, $dye_color, $dye_opacity)];
+            $theme->{$color} = [linear_color_mix($theme->{$color}, $dye_rgb, $dye_opacity)];
         }
+        $theme->{$color} = linear_to_srgb($theme->{$color});
+        $theme->{$color} = multiply_255($theme->{$color});
     }
-    foreach my $color (keys %$new_theme) {
-        $new_theme->{$color} = $convert->($new_theme->{$color});
-    }
-    return $new_theme;
+    return $theme;
 }
 
 1;
