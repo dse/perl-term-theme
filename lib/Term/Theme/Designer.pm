@@ -61,6 +61,7 @@ sub design_theme {
     my $bright_background      = $options{bright_background}      // [0, 0, 0.25];
     my $bright_foreground      = $options{bright_foreground}      // [0, 0, 1];
     my $cursor_color           = $options{cursor_color}           // [1/6, 1, 0.5];
+    my $colorspace             = $options{colorspace}             // 'hsl';
     my $no_gamma               = $options{no_gamma} // 0;
     my $no_zero_to_one         = $options{no_zero_to_one} // 0;
     if (!defined $bright_background) {
@@ -88,8 +89,8 @@ sub design_theme {
     my $bright_black     = [0, 0, $bright_black_lightness];
     my $bright_white     = [0, 0, $bright_white_lightness];
     my $hex = sub {
-        my $hsl = shift;
-        return srgb_hex(multiply_255(hsl_to_srgb($hsl)));
+        my ($hsx) = @_;
+        return colorspace_to_srgb_hex($colorspace, $hsx);
     };
     my $theme = {
         Black                     => $black,
@@ -123,26 +124,27 @@ sub design_theme {
         sprintf('bright black lightness: %.5f', $bright_black_lightness),
         sprintf('white lightness:        %.5f', $white_lightness),
         sprintf('bright white lightness: %.5f', $bright_white_lightness),
-        sprintf('dye color:              hsl(%.5f, %.5f, %.5f) %s', @{$dye_color}, $hex->(($dye_color))),
+        sprintf('dye color:              %s(%.5f, %.5f, %.5f) %s', $colorspace, @{$dye_color}, $hex->(($dye_color))),
         sprintf('dye opacity:            %.5f', $dye_opacity),
         sprintf('dye chromatics?:        %s', $dye_chromatics ? 'true' : 'false'),
         sprintf('dye achromatics?:       %s', $dye_achromatics ? 'true' : 'false'),
-        sprintf('background:             hsl(%.5f, %.5f, %.5f) %s', @{$background}, $hex->(($background))),
-        sprintf('foreground:             hsl(%.5f, %.5f, %.5f) %s', @{$foreground}, $hex->(($foreground))),
-        sprintf('bright background:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_background}, $hex->(($bright_background))),
-        sprintf('bright foreground:      hsl(%.5f, %.5f, %.5f) %s', @{$bright_foreground}, $hex->(($bright_foreground))),
-        sprintf('cursor color:           hsl(%.5f, %.5f, %.5f) %s', @{$cursor_color}, $hex->(($cursor_color))),
+        sprintf('background:             %s(%.5f, %.5f, %.5f) %s', $colorspace, @{$background}, $hex->(($background))),
+        sprintf('foreground:             %s(%.5f, %.5f, %.5f) %s', $colorspace, @{$foreground}, $hex->(($foreground))),
+        sprintf('bright background:      %s(%.5f, %.5f, %.5f) %s', $colorspace, @{$bright_background}, $hex->(($bright_background))),
+        sprintf('bright foreground:      %s(%.5f, %.5f, %.5f) %s', $colorspace, @{$bright_foreground}, $hex->(($bright_foreground))),
+        sprintf('cursor color:           %s(%.5f, %.5f, %.5f) %s', $colorspace, @{$cursor_color}, $hex->(($cursor_color))),
+        sprintf('colorspace:             %s', $colorspace),
     ];
     $theme->{'@SUMMARY'} = [
-        sprintf('colors: %s %s %s %s %s %s %s %s', (map { $hex->(($theme->{$_})) } qw(Black Red Green Yellow Blue Magenta Cyan White))),
-        sprintf('bright: %s %s %s %s %s %s %s %s', (map { $hex->(($theme->{$_})) } qw(BoldBlack BoldRed BoldGreen BoldYellow BoldBlue BoldMagenta BoldCyan BoldWhite))),
+        sprintf('colors: blk %s red %s grn %s yel %s blu %s mgn %s cyn %s wht %s', (map { $hex->(($theme->{$_})) } qw(Black Red Green Yellow Blue Magenta Cyan White))),
+        sprintf('bright: blk %s red %s grn %s yel %s blu %s mgn %s cyn %s wht %s', (map { $hex->(($theme->{$_})) } qw(BoldBlack BoldRed BoldGreen BoldYellow BoldBlue BoldMagenta BoldCyan BoldWhite))),
         sprintf('fg: %s   bg: %s   bright fg: %s   bright bg: %s   cursor: %s ', (map { $hex->(($theme->{$_})) } qw(ForegroundColour
                                                                                                                     BackgroundColour
                                                                                                                     HighlightForegroundColour
                                                                                                                     HighlightBackgroundColour
                                                                                                                     CursorColour))),
     ];
-    my $dye_rgb = hsl_to_linear($dye_color);
+    my $dye_rgb = colorspace_to_linear($colorspace, $dye_color);
     foreach my $color (keys %$theme) {
         next if substr($color, 0, 1) eq '@';
         my $use_dye = 0;
@@ -152,7 +154,7 @@ sub design_theme {
         if (is_chromatic($color)) {
             $use_dye = $dye_chromatics;
         }
-        $theme->{$color} = hsl_to_linear($theme->{$color});
+        $theme->{$color} = colorspace_to_linear($colorspace, $theme->{$color});
         if ($use_dye) {
             $theme->{$color} = [linear_color_mix($theme->{$color}, $dye_rgb, $dye_opacity)];
         }
@@ -160,6 +162,24 @@ sub design_theme {
         $theme->{$color} = multiply_255($theme->{$color});
     }
     return $theme;
+}
+
+sub colorspace_to_linear {
+    my ($colorspace, $h, $s, $x) = @_;
+    return hsl_to_linear($h, $s, $x) if $colorspace eq 'hsl';
+    return hsv_to_linear($h, $s, $x) if $colorspace eq 'hsv';
+    return hsi_to_linear($h, $s, $x) if $colorspace eq 'hsi';
+    return hsp_to_linear($h, $s, $x) if $colorspace eq 'hsp';
+}
+
+sub colorspace_to_srgb_hex {
+    my ($colorspace, $h, $s, $x) = @_;
+    my $srgb;
+    $srgb = hsl_to_srgb($h, $s, $x) if $colorspace eq 'hsl';
+    $srgb = hsv_to_srgb($h, $s, $x) if $colorspace eq 'hsv';
+    $srgb = hsi_to_srgb($h, $s, $x) if $colorspace eq 'hsi';
+    $srgb = hsp_to_srgb($h, $s, $x) if $colorspace eq 'hsp';
+    return srgb_hex(multiply_255($srgb));
 }
 
 1;

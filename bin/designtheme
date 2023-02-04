@@ -5,72 +5,153 @@ use open qw(:locale);
 use Getopt::Long;
 use Data::Dumper qw(Dumper);
 
+our $RE_REAL = qr{
+                   (?:
+                     [-+]?
+                     (?:
+                       \.\d+
+                     |
+                       \d+(?:\.\d*)?
+                     )
+                     (?:e[-+]?\d+)?
+                   )
+               }xi;
+our $RE_REAL_OR_FRAC = qr{
+                           (?:
+                             (?<num>${RE_REAL})
+                             (?:
+                               /
+                               (?<denom>${RE_REAL})
+                             )?
+                           )
+                       }xi;
+
 use Carp::Always;
 use lib "$ENV{HOME}/git/dse.d/perl-term-theme/lib";
 use lib "$ENV{HOME}/git/dse.d/perl-color-functions/lib";
 use Term::Theme::Designer qw(:all);
 use Term::Theme::Print qw(print_theme);
+use Color::Functions qw(:all);
 
 our %color_options;
-
 Getopt::Long::Configure('gnu_compat', 'bundling', 'no_ignore_case');
 Getopt::Long::GetOptions(
-    'hue|hue-shift=f'                    => \$color_options{hue_shift},
-    'sat|saturation=f'                   => \$color_options{saturation},
-    'light|lightness|normal-lightness=f' => \$color_options{normal_lightness},
-    'bright-lightness=f'                 => \$color_options{bright_lightness},
-    'black-lightness=f'                  => \$color_options{black_lightness},
-    'bright-black-lightness=f'           => \$color_options{bright_black_lightness},
-    'white-lightness=f'                  => \$color_options{white_lightness},
-    'bright-white-lightness=f'           => \$color_options{bright_white_lightness},
-    'dye|dye-color=s'                    => \$color_options{dye_color},
-    'dye-opacity=f'                      => \$color_options{dye_opacity},
-    'dye-chromatics'                     => \$color_options{dye_chromatics},
-    'dye-achromatics'                    => \$color_options{dye_achromatics},
-    'bg|background=s'                    => \$color_options{background},
-    'fg|foreground=s'                    => \$color_options{foreground},
-    'BG|bright-background=s'             => \$color_options{bright_background},
-    'FG|bright-foreground=s'             => \$color_options{bright_foreground},
-    'cursor=s'                           => \$color_options{cursor_color},
-    'no-gamma'                           => \$color_options{no_gamma},
-    'no-zero-to-one'                     => \$color_options{no_zero_to_one},
-    'greenscreen' => sub {
-        %color_options = (
-            %color_options, (
-                hue_shift              => 0,
-                saturation             => 1, # chromatics
-                normal_lightness       => 0.3, # chromatics
-                bright_lightness       => 0.6, # chromatics
-                black_lightness        => 0,
-                bright_black_lightness => 0.05,
-                white_lightness        => 0.5,
-                bright_white_lightness => 1.0,
-                dye_color              => [1/3, 1, 0.01],
-                dye_opacity            => 0.5,
-                dye_chromatics         => 1,
-                dye_achromatics        => 0,
-                background             => [1/3, 1, 0.01],
-                foreground             => [1/3, 1, 0.5],
-                bright_background      => [1/3, 1, 0.1],
-                bright_foreground      => [1/3, 1, 0.8],
-                cursor                 => [1/6, 1, 1],
-            )
-        );
+    # for normal and bright colors red/grn/yel/blu/cyn/mgn/wht
+    'hue|hue-shift=s'                    => getopt_long_set_hash_key(\%color_options, 'hue_shift'),
+    'sat|saturation=s'                   => getopt_long_set_hash_key(\%color_options, 'saturation'),
+
+    # for normal/bright colors red/grn/yel/blu/cyn/mgn/wht
+    'light|lightness|normal-lightness=s' => getopt_long_set_hash_key(\%color_options, 'normal_lightness'), # for normal colors red/grn/yel/blu/cyn/mgn
+    'bright-lightness=s'                 => getopt_long_set_hash_key(\%color_options, 'bright_lightness'), # for bright colors red/grn/yel/blu/cyn/mgn
+
+    # for normal and bright blk/wht
+    'black-lightness=s'                  => getopt_long_set_hash_key(\%color_options, 'black_lightness'), # for blk
+    'bright-black-lightness=s'           => getopt_long_set_hash_key(\%color_options, 'bright_black_lightness'), # for bright blk
+    'white-lightness=s'                  => getopt_long_set_hash_key(\%color_options, 'white_lightness'), # for wht
+    'bright-white-lightness=s'           => getopt_long_set_hash_key(\%color_options, 'bright_white_lightness'), # for bright wht
+
+    # applies to chromatics and/or achromatics depending on flags
+    'dye|dye-color=s'                    => getopt_long_set_hash_key(\%color_options, 'dye_color'),
+    'dye-opacity=s'                      => getopt_long_set_hash_key(\%color_options, 'dye_opacity'),
+    'dye-chromatics'                     => getopt_long_set_hash_key(\%color_options, 'dye_chromatics'), # normal and bright blk/red/grn/yel/blu/cyn/mgn/wht
+    'dye-achromatics'                    => getopt_long_set_hash_key(\%color_options, 'dye_achromatics'), # normal fg/bg and bright bg/fg and cursor
+
+    # default colors
+    'bg|background=s'                    => getopt_long_set_hash_key(\%color_options, 'background'),
+    'fg|foreground=s'                    => getopt_long_set_hash_key(\%color_options, 'foreground'),
+    'BG|bright-background=s'             => getopt_long_set_hash_key(\%color_options, 'bright_background'),
+    'FG|bright-foreground=s'             => getopt_long_set_hash_key(\%color_options, 'bright_foreground'),
+    'cursor=s'                           => getopt_long_set_hash_key(\%color_options, 'cursor_color'),
+    'color-space|colorspace=s'           => getopt_long_set_hash_key(\%color_options, 'colorspace'),
+
+    # not yet used
+    'no-gamma'                           => getopt_long_set_hash_key(\%color_options, 'no_gamma'),
+    'no-zero-to-one'                     => getopt_long_set_hash_key(\%color_options, 'no_zero_to_one'),
+    'greenscreen|green-screen'           => sub {
+        assign(\%color_options, (hue_shift              => 0,
+                                 saturation             => 1,   # chromatics
+                                 normal_lightness       => 0.5, # chromatics
+                                 bright_lightness       => 0.8, # chromatics
+                                 black_lightness        => 0,
+                                 bright_black_lightness => 0.05,
+                                 white_lightness        => 0.5,
+                                 bright_white_lightness => 1.0,
+                                 dye_color              => [1/3, 1, 0.01],
+                                 dye_opacity            => 0.5,
+                                 dye_chromatics         => 1,
+                                 dye_achromatics        => 0,
+                                 background             => [1/3, 1, 0.01],
+                                 foreground             => [1/3, 1, 0.5],
+                                 bright_background      => [1/3, 1, 0.1],
+                                 bright_foreground      => [1/3, 1, 0.8],
+                                 cursor                 => [1/6, 1, 1]));
     },
 ) or die(":-(\n");
+
 foreach my $key (qw(background
                     foreground
+                    dye_color
                     bright_background
                     bright_foreground
                     cursor_color)) {
-    my $value = $color_options{$key};
-    if (defined $value && ref $value ne 'ARRAY') {
-        my @values = split(/[, ]+/, $value);
-        $color_options{$key} = \@values;
-    }
+  $color_options{$key} = parse_color($color_options{colorspace}, $color_options{$key}) if defined $color_options{$key};
+}
+foreach my $key (qw(hue_shift
+                    saturation
+                    normal_lightness
+                    bright_brightness
+                    black_lightness
+                    bright_black_lightness
+                    white_lightness
+                    bright_white_lightness
+                    dye_opacity)) {
+  $color_options{$key} = parse_real_or_frac($color_options{$key}) if defined $color_options{$key};
 }
 my $theme = design_theme(%color_options);
 print(print_theme($theme));
 foreach my $summary_line (@{$theme->{'@SUMMARY'}}) {
     print STDERR ("# $summary_line\n");
+}
+foreach my $comment (@{$theme->{'@COMMENTS'}}) {
+    print STDERR ("# $comment\n");
+}
+
+sub looks_like_real_or_frac {
+  my ($str) = @_;
+  return $str =~ m{^${RE_REAL_OR_FRAC}$}xi;
+}
+sub parse_real_or_frac {
+  my ($str) = @_;
+  if ($str !~ m{^${RE_REAL_OR_FRAC}$}xi) {
+    die("invalid real number or fraction: $str\n");
+  }
+  return $+{num} / ($+{denom} // 1);
+}
+sub getopt_long_set_hash_key {
+    my ($hashref, $key) = @_;
+    return sub { $hashref->{$key} = $_[1]; };
+}
+sub assign {
+    my ($hashref, %args) = @_;
+    foreach my $key (keys %args) {
+        $hashref->{$key} = $args{$key};
+    }
+}
+sub parse_color {
+  my ($colorspace, $spec) = @_;
+  print STDERR (sprintf("%s %s\n", $colorspace, $spec));
+  if (ref $spec eq 'ARRAY') {
+    $spec = [ map { parse_real_or_frac($_) } @$spec ];
+    return $spec;
+  }
+  if ($spec =~ m{^#(?<r>[[:xdigit:]]{2})(?<g>[[:xdigit:]]{2})(?<b>[[:xdigit:]]{2})$}) {
+    return srgb_to_hsi([hex($+{r}) / 255, hex($+{g}) / 255, hex($+{b}) / 255]) if $colorspace eq 'hsi';
+    return srgb_to_hsl([hex($+{r}) / 255, hex($+{g}) / 255, hex($+{b}) / 255]) if $colorspace eq 'hsl';
+    return srgb_to_hsp([hex($+{r}) / 255, hex($+{g}) / 255, hex($+{b}) / 255]) if $colorspace eq 'hsp';
+    return srgb_to_hsv([hex($+{r}) / 255, hex($+{g}) / 255, hex($+{b}) / 255]) if $colorspace eq 'hsv';
+  }
+  if ($spec =~ m{^$(?<x>{RE_REAL_OR_FRAC}),(?<y>${RE_REAL_OR_FRAC}),(?<z>${RE_REAL_OR_FRAC})$}) {
+    return [ map { parse_real_or_frac($_) } ($+{x}, $+{y}, $+{z}) ];
+  }
+  die("invalid color spec: $spec");
 }
